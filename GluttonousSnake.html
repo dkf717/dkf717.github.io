@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>超简易贪吃蛇变色</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      p {
+        text-align: center;
+        font-size: 30px;
+        line-height: 100px;
+      }
+      #select {
+        font-size: 30px;
+        border: none;
+        outline: none;
+        margin: 0 25px;
+      }
+      #btn {
+        font-size: 30px;
+        border-radius: 10px;
+        outline: none;
+      }
+      #bigbox {
+        width: 502px;
+        height: 502px;
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 auto;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        /* transform: rotate3D(10, 0, 4, 60deg);
+        transform-style: preserve-3d; */
+      }
+
+      .smallbox {
+        width: 50px;
+        height: 50px;
+        /* border: 1px solid rgba(0, 0, 0, 0.1); */
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 30px;
+        color: #ccc;
+      }
+    </style>
+  </head>
+
+  <body>
+    <p>
+      选择难度
+      <select id="select">
+        <option value="1024">菜鸡</option>
+        <option value="512">普通</option>
+        <option value="256">高手</option>
+        <option value="128">大神</option>
+        <option value="64">非人类</option>
+      </select>
+      <input type="button" id="btn" value="开始" />
+    </p>
+    <div id="bigbox"></div>
+  </body>
+  <script>
+    var bigbox = document.getElementById("bigbox");
+    var j;
+    var smallbox = "";
+    // 创建100个小圆点
+    for (var i = 0; i < 100; i++) {
+      if (i < 10) {
+        j = "0" + i;
+      } else {
+        j = i;
+      }
+      smallbox += '<div class="smallbox" id="box' + j + '"></div>';
+    }
+    bigbox.innerHTML = smallbox; // 创建100个小圆点结束
+    var arr = ["00"];
+    var arrColor = [randomColor()];
+    var x = 0;
+    var y = 0;
+    var difficulty;
+    var select = document.getElementById("select");
+    var btn = document.getElementById("btn");
+    // 随机生成十六进制颜色
+    function randomHexadecimal() {
+      var arr = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "a", "b", "c", "d", "e", "f"];
+      return arr[Math.floor(Math.random() * 16)];
+    }
+    function randomColor() {
+      var color = "#";
+      for (var i = 0; i < 6; i++) {
+        color += randomHexadecimal();
+      }
+      return color;
+    }
+    // 封装一个生成00-99的随机字符串，且不与已有圆点重复
+    function random0099() {
+      var random0099, flag;
+      do {
+        flag = 0;
+        random0099 = Math.floor(Math.random() * 100);
+        random0099 = random0099 < 10 ? "0" + random0099 : String(random0099);
+        for (var i = 0; i < arr.length; i++) {
+          if (random0099 === arr[i]) {
+            flag = 1;
+            break;
+          }
+        }
+      } while (flag);
+      return random0099;
+    } // 封装一个生成00-99的随机字符串完成
+    var random = random0099();
+    var key = 68;
+    var lastKey = 0;
+    var p = document.getElementsByTagName("p");
+    // 点击按钮开始游戏
+    document.onkeydown = function(e) {
+      if (e.keyCode === 13) {
+        btn.onclick();
+      } else if (e.keyCode === 83 && select.value !== "64") {
+        select.value = String(select.value / 2);
+      } else if (e.keyCode === 87 && select.value !== "1024") {
+        select.value = String(select.value * 2);
+      }
+    };
+    btn.onclick = function() {
+      btn.onclick = null;
+      difficulty = select.value;
+      // 设置定时器
+      var timerId = setInterval(function() {
+        var flag = 0;
+        var lastX = x;
+        var lastY = y;
+        // 按下按键改变运动方向
+        document.body.onkeydown = function(event) {
+          lastKey = key;
+          key = event.keyCode;
+          if (key !== 87 && key !== 83 && key !== 65 && key !== 68) {
+            key = lastKey;
+            return;
+          }
+          document.body.onkeydown = null;
+        };
+        // 判断按键的可执行性，无效则不执行
+        if (
+          (key === 87 && lastKey === 83) ||
+          (key === 83 && lastKey === 87) ||
+          (key === 65 && lastKey === 68) ||
+          (key === 68 && lastKey === 65)
+        ) {
+          key = lastKey;
+        }
+        // 判断下一步是否违反游戏规则，是则结束定时器
+        key === 87 && x !== 0
+          ? x--
+          : key === 83 && x !== 9
+          ? x++
+          : key === 65 && y !== 0
+          ? y--
+          : key === 68 && y !== 9
+          ? y++
+          : (flag = 1);
+        var next = String(x) + String(y);
+        if (flag || arr.indexOf(next) !== -1) {
+          x = lastX;
+          y = lastY;
+          clearInterval(timerId);
+          alert("你输了");
+          return;
+        }
+        // 圆点前进过程
+        document.getElementById("box" + random).style.backgroundColor =
+          arrColor[arrColor.length - 1];
+        document.getElementById(
+          "box" + arr[arr.length - 1]
+        ).style.backgroundColor = "";
+        document.getElementById("box" + arr[arr.length - 1]).innerHTML = "";
+        for (var i = arr.length - 1; i !== 0; i--) {
+          arr[i] = arr[i - 1];
+          document.getElementById("box" + arr[i]).style.backgroundColor =
+            arrColor[i - 1];
+          document.getElementById("box" + arr[i]).innerHTML = i + 1;
+        }
+
+        arr[0] = next;
+        document.getElementById("box" + arr[0]).style.backgroundColor = "aqua";
+        document.getElementById("box" + arr[0]).innerHTML = 1;
+        // 头部碰触粉点后增加自身长度且重新生成一个粉点
+        if (random === arr[0] && arr.length < 100) {
+          random = random0099();
+          arrColor[arrColor.length] = randomColor();
+          arr[arr.length] = arr[arr.length - 1];
+        }
+        p[0].innerHTML = "总体长度&nbsp;&nbsp;" + arr.length;
+      }, difficulty);
+    };
+  </script>
+</html>
