@@ -147,7 +147,7 @@
       timerId1 = setInterval(function() {
         if (bulletInfo.idArr.length < 10) {
           document.onmousedown = function() {
-            if (ready > 10) {
+            if (ready > 1) {
               establishBullet();
               ready = 0;
               bulletnum.innerHTML = "子弹数:0";
