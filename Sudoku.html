@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <div class="gridBox"> </div>
+
+
+</body>
+<script>
+    // ---S---声明变量---S---
+    // 可选数字列
+    let toChoose = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    // 位置信息列
+    let indexList = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    // 单个格对象
+    let gridItem = {
+        row: 0,
+        col: 0,
+        palace: 0,
+        // 待选
+        toChoose: [],
+        // 填入
+        fillIn: ''
+    }
+    // 数独列表
+    let gridList = []
+    // 数独树
+    let gridTree = []
+    // ---E---声明变量---E---
+
+    // ---S---声明方法---S---
+    // 初始化数独列表
+    let initGridList = () => {
+        let gridArr = []
+        indexList.forEach(v1 => {
+            indexList.forEach(v2 => {
+                let item = JSON.parse(JSON.stringify(gridItem))
+                item.row = v1
+                item.col = v2
+                item.palace = ~~(v1 / 3) * 3 + ~~(v2 / 3)
+                item.id = '' + item.row + item.col + item.palace
+                item.toChoose = [...toChoose]
+                gridArr.push(item)
+            })
+        })
+        return gridArr
+    }
+    // 初始化数独树
+    let initGridTree = (dataList) => {
+        let tree = []
+        dataList.forEach(v => {
+            tree[v.palace] = [].concat(tree[v.palace] || [], v)
+        })
+        console.log(tree, 'tree')
+        return tree
+    }
+    // 初始化表格元素
+    let initGridDom = (dataTree) => {
+        let box = document.querySelector('.gridBox')
+        box.innerHTML = ''
+        dataTree.forEach(palaceItem => {
+            let palace = document.createElement('div')
+            palace.classList.add('palaceItem')
+            palaceItem.forEach(gridItem => {
+                let grid = document.createElement('div')
+                grid.setAttribute('data-row', gridItem.row)
+                grid.setAttribute('data-col', gridItem.col)
+                grid.setAttribute('data-palace', gridItem.palace)
+                grid.setAttribute('data-id', gridItem.id)
+                grid.setAttribute('id', gridItem.id)
+                grid.classList.add('gridItem', `row${gridItem.row}`, `col${gridItem.col}`, `palace${gridItem.palace}`)
+                grid.onclick = (e) => { gridItemClick(e, gridItem, grid) }
+                if (gridItem.fillIn) {
+                    let fillIn = document.createElement('div')
+                    fillIn.classList.add('fillIn')
+                    fillIn.innerText = gridItem.fillIn
+                    grid.appendChild(fillIn)
+                }
+                gridItem.toChoose.forEach(toChooseItem => {
+                    let toChoose = document.createElement('div')
+                    toChoose.classList.add('toChooseItem')
+                    toChoose.innerText = toChooseItem
+                    grid.appendChild(toChoose)
+                })
+                palace.appendChild(grid)
+
+            })
+            box.appendChild(palace)
+        })
+    }
+    // 数独格点击事件
+    let gridItemClick = (e, gridItemInfo, gridItemDom) => {
+        let oldActiveGridItem = document.querySelector('.gridItemActive')
+        if (oldActiveGridItem) {
+            oldActiveGridItem.classList.remove('gridItemActive')
+        }
+        gridItemDom.classList.add('gridItemActive')
+    }
+    // 按键按下
+    let keydown = () => {
+        document.onkeydown = (e) => {
+            console.log(e)
+            if (!toChoose.includes(~~e.key)) return
+            let gridItemActive = document.querySelector('.gridItemActive')
+            let { row, col, palace } = gridItemActive.dataset
+            console.log(row, col, palace, gridTree, '123456')
+            editGridItem(~~row, ~~col, ~~palace, ~~e.key, e.key - 1)
+        }
+    }
+    // 修改数独元素
+    let editGridItem = (row, col, palace, val, index) => {
+        gridList.forEach(v => {
+            if (v.row === row) {
+                v.toChoose[index] = ''
+            } else if (v.col === col) {
+                v.toChoose[index] = ''
+            } else if (v.palace === palace) {
+                v.toChoose[index] = ''
+            }
+            if (v.row === row && v.col === col && v.palace === palace) {
+                v.fillIn = val
+            }
+        })
+        gridTree = initGridTree(gridList)
+        initGridDom(gridTree)
+    }
+    // ---E---声明方法---E---
+    // 页面加载完成调用
+    window.onload = function () {
+        gridList = initGridList()
+        gridTree = initGridTree(gridList)
+        initGridDom(gridTree)
+        keydown()
+    }
+</script>
+<style>
+    .gridBox {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        row-gap: 2px;
+        column-gap: 2px;
+        background-color: #333;
+        position: relative;
+        /* width: 300px; */
+        /* height: 300px; */
+        width: min-content;
+        font-size: 10px;
+        line-height: 10px;
+        border: 2px solid #333;
+        color: #999;
+        user-select: none;
+    }
+
+    .palaceItem {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        row-gap: 1px;
+        column-gap: 1px;
+        background-color: #666;
+    }
+
+    .gridItem {
+        background-color: #fff;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        justify-content: center;
+        align-items: center;
+        position: relative;
+
+    }
+
+    .gridItemActive {
+        background-color: #4399ff;
+    }
+
+    .fillIn {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #fff;
+        color: #000;
+        font-size: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .toChooseItem {
+        width: 10px;
+        height: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+</style>
+
+</html>
