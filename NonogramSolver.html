@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nonogram Solver</title>
+  </head>
+  <style>
+    /* 输入框容器 */
+    .inputBox {
+      display: flex;
+      margin-bottom: 5px;
+    }
+    .inputBox input {
+      flex: 1;
+    }
+    /* 整体容器 */
+    .box {
+      width: max-content;
+      user-select: none;
+    }
+    /* 行容器 */
+    .box_row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    /* 行限制区域 */
+    .rowRestrict {
+      display: grid;
+      border: 2px solid #333;
+      border-right: none;
+      row-gap: 1px;
+      background-color: #333;
+    }
+    /* 行限制区域内每个元素 */
+    .rowRestrict > div {
+      background-color: #fff;
+      text-align: right;
+      height: 20px;
+      padding: 0 5px;
+      cursor: pointer;
+    }
+    /* 行限制区域内元素激活 */
+    .rowRestrict > div.active {
+      background-color: #409eff;
+      color: #fff;
+    }
+    /* 列限制区域 */
+    .colRestrict {
+      display: grid;
+      border: 2px solid #333;
+      border-bottom: none;
+      column-gap: 1px;
+      background-color: #333;
+      grid-auto-flow: column;
+    }
+    /* 列限制区域内每个元素 */
+    .colRestrict > div {
+      background-color: #fff;
+      width: 20px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+    }
+    /* 列限制区域内元素激活 */
+    .colRestrict > div.active {
+      background-color: #409eff;
+      color: #fff;
+    }
+    /* 数织棋盘区域 */
+    .nonogramBox {
+      display: grid;
+      row-gap: 1px;
+      column-gap: 1px;
+      background-color: #333;
+      position: relative;
+      width: min-content;
+      font-size: 10px;
+      line-height: 10px;
+      border: 2px solid #333;
+      color: #999;
+    }
+    /* 行内 */
+    .row {
+      display: grid;
+      grid-auto-flow: column;
+      row-gap: 1px;
+      column-gap: 1px;
+      background-color: #333;
+    }
+    /* 单元格 */
+    .cell {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #fff;
+      overflow: hidden;
+    }
+    /* 已填充单元格 */
+    .cell.t {
+      background-color: #409eff;
+    }
+    /* 排除单元格 */
+    .cell.f::before {
+      content: "✖";
+      font-size: 46px;
+      transform: translateY(-2px);
+    }
+    /* 按钮容器 */
+    .btnBox {
+      display: flex;
+      padding: 5px 0;
+      align-items: center;
+    }
+    /* 单次解析和完整解析按钮 */
+    #onceBtn,
+    #fullBtn {
+      cursor: pointer;
+      background-color: #409eff;
+      border-radius: 6px;
+      color: #fff;
+      padding: 5px 10px;
+      user-select: none;
+      margin-right: 10px;
+    }
+  </style>
+  <body>
+    <!-- 行规则输入框容器 -->
+    <div class="inputBox">
+      <span>行规则</span>
+      <input type="text" id="inputRowRestrict" />
+    </div>
+    <!-- 列规则输入框容器 -->
+    <div class="inputBox">
+      <span>列规则</span>
+      <input type="text" id="inputColRestrict" />
+    </div>
+    <!-- 按钮容器 -->
+    <div class="btnBox">
+      <input
+        type="checkbox"
+        checked
+        id="animationCheckbox"
+        style="cursor: pointer"
+      />
+      <label
+        for="animationCheckbox"
+        style="cursor: pointer; user-select: none; margin-right: 10px"
+        >逐帧动画</label
+      >
+      <div id="onceBtn">单次解析</div>
+      <div id="fullBtn">完整解析</div>
+      <input style="display: none" type="text" id="inputRestrictItem" />
+      <div id="info"></div>
+    </div>
+    <!-- 数织整体布局容器 -->
+    <div class="box">
+      <div class="box_row">
+        <div class="colRestrict"></div>
+      </div>
+      <div class="box_row">
+        <div class="rowRestrict"></div>
+        <div class="nonogramBox"></div>
+      </div>
+    </div>
+    <script>
+      // 输入变量
+      // --------------------------------------------------------------
+      // 输入行规则
+      // let inputRowRestrict = `2 3,5 5,7 6,8 7,8 8,8 8,8 8,8 8 4,8 8 2 2,8 8 2 2,7 13 2,7 14 3,6 6 8,12 6,12 4,3 5 4,2 4 4,1 3 5,2 4 6,1 3 6,2 3 7,2 3 8,3 2 14,2 1 1 1 15,2 16,3 3 18,27,12 12,27,26`;
+      // let inputRowRestrict = `3 3,5 7 5,2 12 2,2 12 2,18,17,18,4 6 6,4 6 6,3 1 2 5,5 3 7,4 3 6,4 1 1 1 5,3 5 5,3 7,2 2 5,10 6,4 6,4 7,4 6,4 7,7 3 3 2,9 6 2 2,2 9 6 3 3,1 7 14,1 7 13,2 8 10,11 10,6 13,10`;
+      let inputRowRestrict = `2 2 2,1 1 1,1 2 1,2 2 1,1 2 2,2 2 1,1 2 1,2 2 2,2 2 2,2 2`;
+      // 输入列规则
+      // let inputColRestrict = `3 2,7 6 3,10 12,12 3 1 5,12 2 1 4,15 5,14 5,12 5,10 4,7 1 4,2 1 4,7 3 1 4,16 1 5,19 2 2,20 3 2,21 4 2,14 12,11 10,8 9,2 8,2 8,2 8,4 9,6 10,2 5 12,1 19,1 17,2 17,6 12,4 9`;
+      // let inputColRestrict = `4,2 2,2 2,3 3,8,3 6 10,5 8 11,2 11 12,2 5 5 12,6 1 5 6,5 1 1 3 6,7 1 1 2 3,8 2 1 1 2 2,8 4 1 2 2,8 2 1 1 3 3,8 1 1 8,9 1 1 8,6 1 2 7,6 1 2 7,7 5 7,14 6,2 13 5,2 15 6,28,3 5 13,7 2,5 2,4 3,7,4`;
+      let inputColRestrict = `1 2 2,2 2 2,1 2,1 2 1,2 1 2,2 1 2,2 2 1,1 1 2,2 2 2,1 2 2`;
+
+      // 页面元素
+      // --------------------------------------------------------------
+      // 行规则输入框元素
+      const rowRestrictDom = document.getElementById("inputRowRestrict");
+      // 列规则输入框元素
+      const colRestrictDom = document.getElementById("inputColRestrict");
+      // 动画选择框元素
+      const animationCheckboxDom = document.getElementById("animationCheckbox");
+      // 单个限制输入框元素
+      const restrictItemDom = document.getElementById("inputRestrictItem");
+      // 信息展示元素
+      const infoDom = document.getElementById("info");
+
+      // 逻辑变量
+      // --------------------------------------------------------------
+      // 行限制
+      let rowRestrict = [];
+      // 列限制
+      let colRestrict = [];
+      // 单个限制
+      let restrictItem = [];
+      // 数织地图
+      let nonogramMap = {};
+      let nonogramMapKeyList = [];
+      // 行相关信息列表
+      let rowList = [];
+      // 列相关信息列表
+      let colList = [];
+      // 最大执行次数
+      let timeSetting = 999;
+      // 当前执行次数
+      let executionTimes = 0;
+      // 有效填充的单元格数量
+      let validLength = 0;
+      // 标记是否需要重置
+      let needReset = true;
+      // 结束标志
+      let endType = 0; // 0:继续执行 1:无解 2:破解 3:超出次数 4:需要决策
+      // 动画展示
+      let animationShow = true;
+      // 按钮锁定
+      let btnLock = false;
+      // 决策相关信息列表
+      let decisionList = [];
+
+      // 方法
+      // --------------------------------------------------------------
+      /** 决策回退 */
+      const decisionBack = () => {
+        if (decisionList.length === 0) return false;
+        let lastDecision = decisionList.pop();
+        nonogramMap = lastDecision.nonogramMap;
+        rowList = lastDecision.rowList;
+        colList = lastDecision.colList;
+        nonogramMap[lastDecision.key].value = -1;
+        return true;
+      };
+      /** 决策 */
+      const decision = () => {
+        // 备份
+        let decisionBackup = {
+          nonogramMap: JSON.parse(JSON.stringify(nonogramMap)),
+          rowList: JSON.parse(JSON.stringify(rowList)),
+          colList: JSON.parse(JSON.stringify(colList)),
+        };
+        // 将首个不为空的单元格置为1
+        for (let i = 0; i < nonogramMapKeyList.length; i++) {
+          let key = nonogramMapKeyList[i];
+          if (!nonogramMap[key].value) {
+            decisionBackup.key = key;
+            decisionList.push(decisionBackup);
+            nonogramMap[key].value = 1;
+            return true;
+          }
+        }
+        return false;
+      };
+      /** 获取结束状态 */
+      const getEndType = (nonogramMapLength, newValidLength) => {
+        let noSolution = false;
+        let success = true;
+        // let rowArr = rowList.map((v) => v.options.length);
+        // let colArr = colList.map((v) => v.options.length);
+        // 检查是否有无法解决的情况
+        [...rowList, ...colList].some((v) => {
+          if (v.options.length === 0) {
+            noSolution = true;
+            return true;
+          } else if (v.options.length > 1) {
+            success = false;
+          }
+        });
+        if (noSolution) {
+          // 执行决策退回逻辑并返回执行状态，若决策退回无法进行，则返回 1 无解
+          if (decisionBack()) return 0;
+          return 1;
+        }
+        if (success) {
+          return 2;
+        }
+        // 检查是否需要决策
+        if (!noSolution && !success && newValidLength === validLength) {
+          if (decision()) return 0;
+          return 1;
+        }
+        // 检查是否超出次数限制
+        if (executionTimes >= timeSetting) {
+          return 3;
+        }
+        return 0;
+      };
+      /** 使程序暂停指定时间 */
+      const sleep = () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve();
+          }, 0);
+        });
+      /**
+       * 处理行或列列表，根据已有信息更新数织地图
+       * @param {Array} list 行或列列表
+       * @param {Object} nonogramMap 数织地图
+       * @param {boolean} isRow 是否为行处理，默认为false（即列处理）
+       */
+      const processRCList = async (list, nonogramMap, isRow = false) => {
+        for (let index = 0; index < list.length; index++) {
+          let arr = [];
+          // 过滤掉与数织地图冲突的选项
+          list[index].options = list[index].options.filter((option) => {
+            for (let i = 0; i < option.length; i++) {
+              let key = isRow ? `${index}-${i}` : `${i}-${index}`;
+              // 确定是否与nonogramMap冲突
+              if (
+                nonogramMap[key] &&
+                nonogramMap[key].value &&
+                nonogramMap[key].value !== option[i]
+              ) {
+                return false;
+              }
+            }
+            for (let i = 0; i < option.length; i++) {
+              // 确定是否有可确定项
+              if (arr[i] === undefined) {
+                arr[i] = option[i];
+              } else if (arr[i] !== option[i]) {
+                arr[i] = 0;
+              }
+            }
+            return true;
+          });
+          for (let i = 0; i < arr.length; i++) {
+            if (arr[i]) {
+              let key = isRow ? `${index}-${i}` : `${i}-${index}`;
+              if (!nonogramMap[key] || !nonogramMap[key].value) {
+                nonogramMap[key] = {
+                  value: arr[i],
+                };
+                if (animationShow) {
+                  createGridDom();
+                  await sleep();
+                }
+              }
+            }
+          }
+        }
+      };
+      /**
+       * 验证填充数组是否满足总和要求
+       * @param {number} sum 期望总和
+       * @param {Array} fillArr 填充数组
+       * @returns {boolean} 是否满足要求
+       */
+      const verifyFillArr = (sum, fillArr) => {
+        let _sum = sum;
+        fillArr.forEach((v) => {
+          _sum -= v;
+        });
+        return _sum >= 0;
+      };
+      /**
+       * 获取下一个填充数组
+       * @param {number} sum 总和
+       * @param {Array} fillArr 当前填充数组
+       * @param {number} index 当前处理索引，默认为0
+       * @returns {Array|false} 下一个填充数组或者false表示无法生成
+       */
+      const getNextFillArr = (sum, fillArr, index = 0) => {
+        if (index >= fillArr.length) return false;
+        fillArr[index] += 1;
+        if (verifyFillArr(sum, fillArr)) {
+          return fillArr;
+        } else {
+          for (let i = 0; i < fillArr.length; i++) {
+            if (fillArr[i] !== 1) {
+              fillArr[i] = 1;
+              return getNextFillArr(sum, fillArr, index + 1);
+            }
+          }
+          return false;
+        }
+      };
+      /**
+       * 创建选项
+       * @param {number} sum 总和
+       * @param {Array} restrict 限制数组
+       * @param {Array} fillArr 填充数组
+       * @param {Array} options 结果选项数组
+       */
+      const createOptions = (sum, restrict, fillArr, options) => {
+        let _fillArr = fillArr;
+        do {
+          let _sum = sum;
+          let option = [];
+          _fillArr.forEach((v, i) => {
+            _sum -= v;
+            option = option.concat(new Array(v).fill(-1));
+            option = option.concat(restrict[i]);
+          });
+          if (_sum >= 0) {
+            let [a, ..._option] = option.concat(new Array(_sum).fill(-1));
+            options.push(_option);
+          }
+          _fillArr = getNextFillArr(sum, fillArr);
+        } while (_fillArr);
+      };
+      /**
+       * 创建行或列列表
+       * @param {Array} restrict 限制数组
+       * @param {number} sum 总和
+       * @returns {Array} 包含限制和选项的行或列列表
+       */
+      const createRCList = (restrict, sum) => {
+        return restrict.map((v) => {
+          let _sum = sum;
+          let restrictArr = [];
+          let fillArr = [];
+          let options = [];
+          v.forEach((v2) => {
+            _sum -= v2;
+            let arr = new Array(~~v2).fill(1);
+            restrictArr.push(arr);
+            fillArr.push(1);
+          });
+          createOptions(_sum, restrictArr, fillArr, options);
+          return {
+            restrict: v,
+            options,
+          };
+        });
+      };
+      /** 重置所有变量和状态 */
+      const reset = () => {
+        executionTimes = 0;
+        validLength = 0;
+        endType = 0;
+        // 根据当前行限制规则创建行列表
+        rowList = createRCList(rowRestrict, colRestrict.length + 1);
+        // 根据当前列限制规则创建列列表
+        colList = createRCList(colRestrict, rowRestrict.length + 1);
+        needReset = false;
+        decisionList = [];
+      };
+      /** 破解数织 */
+      const crackNonogram = async () => {
+        btnLock = true;
+        // 破解前检查是否需要重置
+        if (needReset) {
+          reset();
+        }
+        let nonogramMapLength = Object.keys(nonogramMap).length;
+        do {
+          console.log("破解循环");
+          // 行处理
+          await processRCList(rowList, nonogramMap, true);
+          // 列处理
+          await processRCList(colList, nonogramMap, false);
+          executionTimes++;
+          let newValidLength = Object.values(nonogramMap).filter(
+            (v) => v.value
+          ).length;
+          endType = getEndType(nonogramMapLength, newValidLength);
+          validLength = newValidLength;
+          infoStr = `执行次数:${executionTimes}`;
+          if (endType === 1) {
+            infoStr += ";破解状态:无解";
+          } else if (endType === 2) {
+            infoStr += ";破解状态:破解";
+          }
+          infoDom.innerHTML = infoStr;
+        } while (!endType);
+        if (!animationShow) {
+          createGridDom();
+        }
+        btnLock = false;
+      };
+      /** 根据数织地图生成数织棋盘的DOM */
+      const createGridDom = () => {
+        let nonogramBoxDom = document.querySelector(".nonogramBox");
+        nonogramBoxDom.innerHTML = "";
+        rowRestrict.forEach((rowItem, rowIndex) => {
+          let row = document.createElement("div");
+          row.classList.add("row");
+          colRestrict.forEach((colItem, colIndex) => {
+            let cell = document.createElement("div");
+            cell.classList.add("cell");
+            const nonogramItem = nonogramMap[`${rowIndex}-${colIndex}`];
+            if (nonogramItem) {
+              if (nonogramItem.value === 1) {
+                cell.classList.add("t");
+              } else if (nonogramItem.value === -1) {
+                cell.classList.add("f");
+              }
+            }
+            row.appendChild(cell);
+          });
+          nonogramBoxDom.appendChild(row);
+        });
+      };
+      /** 生成列限制区域的DOM */
+      const createColDom = () => {
+        let colRestrictDom = document.querySelector(".colRestrict");
+        colRestrictDom.innerHTML = "";
+        colRestrict.forEach((v, i) => {
+          let row = document.createElement("div");
+          row.innerText = v.join("\n");
+          row.addEventListener("click", () => {
+            removeActiveClass();
+            row.classList.add("active");
+            restrictItemDom.value = v.join(" ");
+            restrictItemDom.style.display = "block";
+            restrictItemDom.focus();
+            restrictItem = v;
+          });
+          colRestrictDom.appendChild(row);
+        });
+      };
+      /** 移除active类 */
+      const removeActiveClass = () => {
+        let activeDom = document.querySelector(".active");
+        if (activeDom) {
+          activeDom.classList.remove("active");
+        }
+      };
+      const createRowDom = () => {
+        let rowRestrictDom = document.querySelector(".rowRestrict");
+        rowRestrictDom.innerHTML = "";
+        rowRestrict.forEach((v, i) => {
+          let row = document.createElement("div");
+          row.innerText = v.join(" ");
+          row.addEventListener("click", () => {
+            removeActiveClass();
+            row.classList.add("active");
+            restrictItemDom.value = v.join(" ");
+            restrictItemDom.style.display = "block";
+            restrictItemDom.focus();
+            restrictItem = v;
+          });
+          rowRestrictDom.appendChild(row);
+        });
+      };
+      /** 生成dom */
+      const createDom = () => {
+        createRowDom();
+        createColDom();
+        createGridDom();
+      };
+      /**
+       * 创建数织地图（初始化为全0）
+       * @param {number} rn 行数
+       * @param {number} cn 列数
+       * @returns {Object} 表示数织地图的对象
+       */
+      const createNonogramMap = (rn, cn) => {
+        let _nonogramMap = {};
+        let _nonogramMapKeyList = [];
+        for (let i = 0; i < rn; i++) {
+          for (let j = 0; j < cn; j++) {
+            _nonogramMapKeyList.push(`${i}-${j}`);
+            _nonogramMap[`${i}-${j}`] = {
+              value: 0,
+            };
+          }
+        }
+        nonogramMapKeyList = _nonogramMapKeyList;
+        return _nonogramMap;
+      };
+      /** 回写 */
+      const backWrite = () => {
+        inputRowRestrict = rowRestrict.map((v) => v.join(" ")).join(",");
+        rowRestrictDom.value = inputRowRestrict;
+        inputColRestrict = colRestrict.map((v) => v.join(" ")).join(",");
+        colRestrictDom.value = inputColRestrict;
+      };
+      /** 分析限制 */
+      const analyzeRestrict = (restrictStr) => {
+        return restrictStr
+          .split(",")
+          .map((v) =>
+            v
+              .split(" ")
+              .map((v2) => ~~v2)
+              .filter((v2) => v2)
+          )
+          .filter((v) => v.length);
+      };
+      /** 创建限制 */
+      const createRestrict = () => {
+        if (!inputRowRestrict) return;
+        if (!inputColRestrict) return;
+        rowRestrictDom.value = inputRowRestrict;
+        colRestrictDom.value = inputColRestrict;
+        // 分析限制
+        rowRestrict = analyzeRestrict(inputRowRestrict);
+        colRestrict = analyzeRestrict(inputColRestrict);
+        backWrite();
+        // 创建数织地图
+        nonogramMap = createNonogramMap(rowRestrict.length, colRestrict.length);
+        // 创建dom
+        createDom();
+        infoDom.innerHTML = "";
+        needReset = true;
+      };
+      /** 添加事件 */
+      const addEvent = () => {
+        // 行规则输入框
+        rowRestrictDom.addEventListener("blur", function (event) {
+          console.log("行规则发生变化了，当前值为：", event.target.value);
+          inputRowRestrict = event.target.value;
+          createRestrict();
+        });
+        // 列规则输入框
+        colRestrictDom.addEventListener("blur", function (event) {
+          console.log("列规则发生变化了，当前值为：", event.target.value);
+          inputColRestrict = event.target.value;
+          createRestrict();
+        });
+        animationCheckboxDom.addEventListener("change", function (event) {
+          console.log("动画勾选框发生变化了，当前值为：", event.target.checked);
+          animationShow = event.target.checked;
+        });
+        // 单个规则输入框
+        restrictItemDom.addEventListener("change", function (event) {
+          console.log("单个规则发生变化了，当前值为：", event.target.value);
+          removeActiveClass();
+          restrictItemDom.style.display = "none";
+          let arr = event.target.value
+            .split(" ")
+            .map((v) => ~~v)
+            .filter((v) => v);
+          restrictItem.splice(0, restrictItem.length, ...arr);
+          backWrite();
+          createRestrict();
+        });
+        restrictItemDom.addEventListener("blur", function (event) {
+          removeActiveClass();
+          restrictItemDom.style.display = "none";
+        });
+        // 单次解析按钮
+        const onceBtnDom = document.getElementById("onceBtn");
+        onceBtnDom.addEventListener("click", function (event) {
+          if (btnLock) return;
+          console.log("点击单次解析");
+          timeSetting = 0;
+          crackNonogram();
+        });
+        // 完整解析按钮
+        const fullBtnDom = document.getElementById("fullBtn");
+        fullBtnDom.addEventListener("click", function (event) {
+          if (btnLock) return;
+          console.log("点击了完整解析");
+          timeSetting = 999;
+          crackNonogram();
+        });
+      };
+
+      // 执行
+      // --------------------------------------------------------------
+      addEvent();
+      createRestrict();
+    </script>
+  </body>
+</html>
