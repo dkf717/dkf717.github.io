@@ -227,6 +227,14 @@
 
       // 方法
       // --------------------------------------------------------------
+      const upDateCellDom = (key, value) => {
+        let cellDom = document.querySelector(`.cell[data-key="${key}"]`);
+        if (value === 1) {
+          cellDom.classList.add("t");
+        } else if (value === -1) {
+          cellDom.classList.add("f");
+        }
+      };
       /** 决策回退 */
       const decisionBack = () => {
         if (decisionList.length === 0) return false;
@@ -235,6 +243,7 @@
         rowList = lastDecision.rowList;
         colList = lastDecision.colList;
         nonogramMap[lastDecision.key].value = -1;
+        createGridDom();
         return true;
       };
       /** 决策 */
@@ -252,6 +261,7 @@
             decisionBackup.key = key;
             decisionList.push(decisionBackup);
             nonogramMap[key].value = 1;
+            upDateCellDom(key, 1);
             return true;
           }
         }
@@ -296,7 +306,7 @@
         new Promise((resolve) => {
           setTimeout(() => {
             resolve();
-          }, 0);
+          }, 10);
         });
       /**
        * 处理行或列列表，根据已有信息更新数织地图
@@ -338,7 +348,7 @@
                   value: arr[i],
                 };
                 if (animationShow) {
-                  createGridDom();
+                  upDateCellDom(key, arr[i]);
                   await sleep();
                 }
               }
@@ -470,9 +480,7 @@
           }
           infoDom.innerHTML = infoStr;
         } while (!endType);
-        if (!animationShow) {
-          createGridDom();
-        }
+        createGridDom();
         btnLock = false;
       };
       /** 根据数织地图生成数织棋盘的DOM */
@@ -485,6 +493,7 @@
           colRestrict.forEach((colItem, colIndex) => {
             let cell = document.createElement("div");
             cell.classList.add("cell");
+            cell.setAttribute("data-key", `${rowIndex}-${colIndex}`);
             const nonogramItem = nonogramMap[`${rowIndex}-${colIndex}`];
             if (nonogramItem) {
               if (nonogramItem.value === 1) {
